@@ -66,6 +66,7 @@ public partial class MainForm : Form
         subtitleLabel.Font = Theme.CaptionFont;
         scanButton.Font = Theme.UiFontBold;
         cancelScanButton.Font = Theme.UiFont;
+        aboutButton.Font = Theme.UiFont;
         statusLabel.Font = Theme.CaptionFont;
         hoverLabel.Font = Theme.CaptionFont;
 
@@ -73,6 +74,8 @@ public partial class MainForm : Form
         scanButton.FlatAppearance.BorderSize = 0;
         cancelScanButton.FlatAppearance.BorderColor = Theme.Border;
         cancelScanButton.FlatAppearance.MouseOverBackColor = Theme.SurfaceHover;
+        aboutButton.FlatAppearance.BorderColor = Theme.Border;
+        aboutButton.FlatAppearance.MouseOverBackColor = Theme.SurfaceHover;
     }
 
     protected override void OnHandleCreated(EventArgs e)
@@ -223,6 +226,12 @@ public partial class MainForm : Form
     }
 
     private void CancelScanButton_Click(object? sender, EventArgs e) => _scanCancellation?.Cancel();
+
+    private void AboutButton_Click(object? sender, EventArgs e)
+    {
+        using var about = new AboutForm();
+        about.ShowDialog(this);
+    }
 
     private void SetScanning(bool scanning)
     {

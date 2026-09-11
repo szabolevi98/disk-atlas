@@ -29,6 +29,7 @@ namespace DiskAtlas
         private void InitializeComponent()
         {
             this.headerPanel = new System.Windows.Forms.Panel();
+            this.aboutButton = new System.Windows.Forms.Button();
             this.cancelScanButton = new System.Windows.Forms.Button();
             this.scanButton = new System.Windows.Forms.Button();
             this.volumeComboBox = new System.Windows.Forms.ComboBox();
@@ -66,6 +67,7 @@ namespace DiskAtlas
             // headerPanel
             //
             this.headerPanel.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(23)))), ((int)(((byte)(31)))), ((int)(((byte)(44)))));
+            this.headerPanel.Controls.Add(this.aboutButton);
             this.headerPanel.Controls.Add(this.cancelScanButton);
             this.headerPanel.Controls.Add(this.scanButton);
             this.headerPanel.Controls.Add(this.volumeComboBox);
@@ -84,7 +86,7 @@ namespace DiskAtlas
             this.cancelScanButton.Enabled = false;
             this.cancelScanButton.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
             this.cancelScanButton.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(147)))), ((int)(((byte)(164)))), ((int)(((byte)(186)))));
-            this.cancelScanButton.Location = new System.Drawing.Point(1064, 20);
+            this.cancelScanButton.Location = new System.Drawing.Point(976, 20);
             this.cancelScanButton.Name = "cancelScanButton";
             this.cancelScanButton.Size = new System.Drawing.Size(92, 30);
             this.cancelScanButton.TabIndex = 4;
@@ -92,13 +94,27 @@ namespace DiskAtlas
             this.cancelScanButton.UseVisualStyleBackColor = false;
             this.cancelScanButton.Click += new System.EventHandler(this.CancelScanButton_Click);
             //
+            // aboutButton
+            //
+            this.aboutButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
+            this.aboutButton.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(30)))), ((int)(((byte)(40)))), ((int)(((byte)(56)))));
+            this.aboutButton.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+            this.aboutButton.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(147)))), ((int)(((byte)(164)))), ((int)(((byte)(186)))));
+            this.aboutButton.Location = new System.Drawing.Point(1076, 20);
+            this.aboutButton.Name = "aboutButton";
+            this.aboutButton.Size = new System.Drawing.Size(84, 30);
+            this.aboutButton.TabIndex = 5;
+            this.aboutButton.Text = "About";
+            this.aboutButton.UseVisualStyleBackColor = false;
+            this.aboutButton.Click += new System.EventHandler(this.AboutButton_Click);
+            //
             // scanButton
             //
             this.scanButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
             this.scanButton.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(45)))), ((int)(((byte)(212)))), ((int)(((byte)(191)))));
             this.scanButton.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
             this.scanButton.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(9)))), ((int)(((byte)(20)))), ((int)(((byte)(28)))));
-            this.scanButton.Location = new System.Drawing.Point(956, 20);
+            this.scanButton.Location = new System.Drawing.Point(868, 20);
             this.scanButton.Name = "scanButton";
             this.scanButton.Size = new System.Drawing.Size(100, 30);
             this.scanButton.TabIndex = 3;
@@ -115,7 +131,7 @@ namespace DiskAtlas
             this.volumeComboBox.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
             this.volumeComboBox.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(230)))), ((int)(((byte)(237)))), ((int)(((byte)(246)))));
             this.volumeComboBox.ItemHeight = 24;
-            this.volumeComboBox.Location = new System.Drawing.Point(604, 22);
+            this.volumeComboBox.Location = new System.Drawing.Point(516, 22);
             this.volumeComboBox.Name = "volumeComboBox";
             this.volumeComboBox.Size = new System.Drawing.Size(340, 30);
             this.volumeComboBox.TabIndex = 2;
@@ -385,6 +401,7 @@ namespace DiskAtlas
         private System.Windows.Forms.ComboBox volumeComboBox;
         private System.Windows.Forms.Button scanButton;
         private System.Windows.Forms.Button cancelScanButton;
+        private System.Windows.Forms.Button aboutButton;
         private DiskAtlas.Controls.ProgressStripe progressStripe;
         private DiskAtlas.Controls.StatsBar statsBar;
         private System.Windows.Forms.SplitContainer mainSplitContainer;
