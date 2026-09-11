@@ -100,6 +100,7 @@ public partial class MainForm : Form
 
     private void MainForm_Load(object? sender, EventArgs e)
     {
+        FitToScreen();
         LoadVolumes();
         ShowIdleStats();
         StretchLastColumn();
@@ -107,6 +108,27 @@ public partial class MainForm : Form
         UpdateStatus(Elevation.IsElevated
             ? "Pick a volume and read its Master File Table."
             : "Not running as administrator, so the volume cannot be opened for raw reading.");
+    }
+
+    /// <summary>
+    /// Keeps the window inside the screen it opens on. The designer size is meant for a
+    /// desktop monitor and is taller than a 1366 by 768 laptop can show.
+    /// </summary>
+    private void FitToScreen()
+    {
+        Rectangle workingArea = Screen.FromControl(this).WorkingArea;
+        Size fitted = WindowSizing.FitWithin(Size, MinimumSize, workingArea);
+
+        if (fitted == Size)
+        {
+            return;
+        }
+
+        Size = fitted;
+
+        // The start position was worked out for the larger size, so it has to be centred
+        // again for the one that actually fits.
+        Location = WindowSizing.CenterWithin(fitted, workingArea);
     }
 
     private void LoadVolumes()

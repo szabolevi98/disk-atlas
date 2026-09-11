@@ -1,6 +1,7 @@
 using System.Buffers.Binary;
 using System.Text;
 using System.Drawing;
+using DiskAtlas;
 using DiskAtlas.Model;
 using DiskAtlas.Ntfs;
 using DiskAtlas.Rendering;
@@ -320,6 +321,43 @@ Check("tree: children are attached to their parent", windows is not null);
 Check("tree: paths start at the volume",
     windows?.Children.FirstOrDefault()?.FullPath == @"D:\Windows\notepad.exe",
     $"got \"{windows?.Children.FirstOrDefault()?.FullPath}\"");
+
+// ---------------------------------------------------------------- window sizing
+
+// The designer size, and the smallest the window may become.
+var designer = new Size(1356, 819);
+var minimum = new Size(900, 560);
+
+// A desktop monitor has room to spare, so nothing should change.
+var desktop = new Rectangle(0, 0, 1920, 1040);
+Check("sizing: a roomy screen is left alone",
+    WindowSizing.FitWithin(designer, minimum, desktop) == designer,
+    $"got {WindowSizing.FitWithin(designer, minimum, desktop)}");
+
+// The laptop this was raised for: 1366 by 768 with a task bar.
+var laptop = new Rectangle(0, 0, 1366, 728);
+Size fitted = WindowSizing.FitWithin(designer, minimum, laptop);
+Check("sizing: the laptop keeps the window on screen",
+    fitted.Width <= laptop.Width && fitted.Height <= laptop.Height,
+    $"got {fitted} inside {laptop.Width}x{laptop.Height}");
+Check("sizing: the laptop keeps the table unscrolled",
+    fitted.Width >= 1272,
+    $"got {fitted.Width}, the six columns plus the folder pane need about 1272");
+Console.WriteLine($"      1366x768 laptop opens at {fitted.Width}x{fitted.Height}");
+
+// Something genuinely small must not shrink past the point of being usable.
+var tiny = new Rectangle(0, 0, 800, 600);
+Size floor = WindowSizing.FitWithin(designer, minimum, tiny);
+Check("sizing: never smaller than the minimum",
+    floor.Width >= minimum.Width && floor.Height >= minimum.Height,
+    $"got {floor}");
+
+// Centring has to account for a task bar that does not sit at the bottom.
+var offset = new Rectangle(60, 0, 1860, 1040);
+Point where = WindowSizing.CenterWithin(new Size(1000, 800), offset);
+Check("sizing: centred inside the working area, not the screen",
+    where.X == 60 + 430 && where.Y == 120,
+    $"got {where}");
 
 Console.WriteLine();
 Console.WriteLine(failures == 0 ? "all checks passed" : $"{failures} check(s) failed");
