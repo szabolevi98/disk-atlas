@@ -6,7 +6,7 @@ Windows disk space analyzer that maps an entire NTFS volume in seconds by parsin
 
 ![Disk Atlas](docs/screenshot.png)
 
-A 232 GB system drive holding 849,743 files in 315,344 folders, mapped in **6.1 seconds** — about 191,000 records a second.
+A 232 GB system drive holding 849,619 files in 315,366 folders, mapped in **5.7 seconds** — about 204,000 records a second.
 
 ## Why it is fast
 
