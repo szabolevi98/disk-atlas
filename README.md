@@ -4,6 +4,10 @@
 
 Windows disk space analyzer that maps an entire NTFS volume in seconds by parsing the Master File Table directly instead of walking directories.
 
+![Disk Atlas](docs/screenshot.png)
+
+A 232 GB system drive holding 849,743 files in 315,344 folders, mapped in **6.1 seconds** — about 191,000 records a second.
+
 ## Why it is fast
 
 A conventional folder scan asks the file system about one directory at a time, which costs a seek for every folder on the volume. Disk Atlas reads the `$MFT` instead — the table NTFS keeps of every file on the volume — as one mostly contiguous stream, and rebuilds the directory tree from the parent references it finds there.
@@ -16,13 +20,11 @@ Getting that right means handling a few things the file system normally hides:
 
 ## The map
 
-![Cushion treemap](docs/treemap-sample.png)
-
-*The renderer running on generated sample data.*
-
 Every file is a rectangle sized by what it occupies and coloured by what it is. The layout is squarified, so rectangles stay close to square and their areas remain comparable by eye. The relief is a cushion surface: each nesting level adds a parabolic ridge, and the result is lit by a fixed light, which is what turns a flat mosaic into something you can read depth from.
 
-Pointing at a rectangle names the file, clicking one selects its folder everywhere else in the window.
+Pointing at a rectangle names the file, clicking one selects its folder everywhere else in the window, which is the outlined block in the screenshot above.
+
+The folder tree shows the largest subfolders of each level and summarises the rest, because an owner drawn tree costs about seven tenths of a millisecond per row and a folder like `WinSxS` holds twenty thousand of them. The list underneath is virtual, so it holds every child and opens instantly whatever the count.
 
 ## Status
 
