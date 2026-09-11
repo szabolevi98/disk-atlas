@@ -294,6 +294,33 @@ static DiskNode BuildCrowdedTree(int fileCount)
     return root;
 }
 
+// ---------------------------------------------------------------- tree building
+
+// NTFS calls the root directory ".", so the tree has to put the volume there instead,
+// otherwise every path starts with a full stop.
+var scan = new RawScan(16, 4096, 1_000_000);
+scan.Add(5, new FileRecord { InUse = true, IsDirectory = true, Name = ".", ParentRecordNumber = 5 });
+scan.Add(6, new FileRecord { InUse = true, IsDirectory = true, Name = "Windows", ParentRecordNumber = 5 });
+scan.Add(7, new FileRecord
+{
+    InUse = true,
+    IsDirectory = false,
+    Name = "notepad.exe",
+    ParentRecordNumber = 6,
+    RealSize = 200_000,
+    AllocatedSize = 204_800,
+});
+
+DiskNode built = DiskAtlas.Scanning.TreeBuilder.Build(scan, "D:", CancellationToken.None);
+Check("tree: root carries the volume, not a full stop", built.Name == "D:", $"got \"{built.Name}\"");
+Check("tree: sizes roll up", built.SizeOnDisk == 204_800, $"got {built.SizeOnDisk}");
+
+DiskNode? windows = built.Children.FirstOrDefault(child => child.Name == "Windows");
+Check("tree: children are attached to their parent", windows is not null);
+Check("tree: paths start at the volume",
+    windows?.Children.FirstOrDefault()?.FullPath == @"D:\Windows\notepad.exe",
+    $"got \"{windows?.Children.FirstOrDefault()?.FullPath}\"");
+
 Console.WriteLine();
 Console.WriteLine(failures == 0 ? "all checks passed" : $"{failures} check(s) failed");
 return failures == 0 ? 0 : 1;

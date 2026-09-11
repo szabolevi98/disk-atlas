@@ -19,10 +19,16 @@ internal static class TreeBuilder
         for (long record = 0; record < scan.Capacity; record++)
         {
             ref RawEntry entry = ref scan[record];
-            if (entry.Present && entry.IsDirectory)
+            if (!entry.Present || !entry.IsDirectory)
             {
-                nodes[record] = new DiskNode(entry.Name ?? "?", isDirectory: true);
+                continue;
             }
+
+            // NTFS stores the root directory under the name ".", which is not what anyone
+            // wants to read at the top of the tree or at the front of a path.
+            nodes[record] = record == MftScanner.RootRecordNumber
+                ? new DiskNode(volumeLabel, isDirectory: true)
+                : new DiskNode(entry.Name ?? "?", isDirectory: true);
         }
 
         cancellationToken.ThrowIfCancellationRequested();
