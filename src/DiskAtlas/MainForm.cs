@@ -14,6 +14,18 @@ public partial class MainForm : Form
     /// </summary>
     private const string PlaceholderKey = "__placeholder__";
 
+    /// <summary>Marks the row standing in for the folders past the display limit.</summary>
+    private const string OverflowKey = "__overflow__";
+
+    /// <summary>
+    /// How many subfolders one tree level shows. An owner drawn TreeView spends about
+    /// seven tenths of a millisecond per inserted node, so a folder like WinSxS with
+    /// twenty thousand subfolders would lock the window up for twenty seconds. The tree
+    /// shows the largest folders, which is what the question is about, and the list below
+    /// still holds every child.
+    /// </summary>
+    private const int TreeChildLimit = 250;
+
     private CancellationTokenSource? _scanCancellation;
     private ScanResult? _result;
 
@@ -297,6 +309,15 @@ public partial class MainForm : Form
 
         if (e.Node.Tag is not DiskNode node)
         {
+            // The summary row has no folder behind it, so it only gets its label.
+            using var summary = new SolidBrush(Theme.TextMuted);
+            using var summaryFormat = new StringFormat { LineAlignment = StringAlignment.Center };
+            graphics.DrawString(
+                e.Node.Text,
+                Theme.CaptionFont,
+                summary,
+                new RectangleF((e.Node.Level * folderTreeView.Indent) + 26, row.Y, row.Width - 40, row.Height),
+                summaryFormat);
             return;
         }
 
@@ -410,18 +431,53 @@ public partial class MainForm : Form
         try
         {
             treeNode.Nodes.Clear();
-            foreach (DiskNode child in node.Children)
-            {
-                if (child.IsDirectory)
-                {
-                    treeNode.Nodes.Add(CreateNode(child));
-                }
-            }
+            treeNode.Nodes.AddRange(BuildChildNodes(node));
         }
         finally
         {
             folderTreeView.EndUpdate();
         }
+    }
+
+    /// <summary>
+    /// Builds the rows for one level: the largest subfolders, and a summary of whatever
+    /// did not fit. Children are already sorted largest first.
+    /// </summary>
+    private static TreeNode[] BuildChildNodes(DiskNode node)
+    {
+        List<DiskNode> directories = [];
+        foreach (DiskNode child in node.Children)
+        {
+            if (child.IsDirectory)
+            {
+                directories.Add(child);
+            }
+        }
+
+        int shown = Math.Min(directories.Count, TreeChildLimit);
+        int hidden = directories.Count - shown;
+
+        var nodes = new TreeNode[shown + (hidden > 0 ? 1 : 0)];
+        for (int i = 0; i < shown; i++)
+        {
+            nodes[i] = CreateNode(directories[i]);
+        }
+
+        if (hidden > 0)
+        {
+            long hiddenSize = 0;
+            for (int i = shown; i < directories.Count; i++)
+            {
+                hiddenSize += directories[i].SizeOnDisk;
+            }
+
+            nodes[shown] = new TreeNode($"{hidden:N0} smaller folders — {DiskNode.FormatSize(hiddenSize)}")
+            {
+                Name = OverflowKey,
+            };
+        }
+
+        return nodes;
     }
 
     private void FolderTreeView_AfterSelect(object? sender, TreeViewEventArgs e)
@@ -496,7 +552,19 @@ public partial class MainForm : Form
 
             if (next is null)
             {
-                return current;
+                // The folder sits past the display limit. Adding just this one keeps the
+                // list able to navigate anywhere without filling the tree.
+                next = CreateNode(wanted);
+
+                int overflowRow = current.Nodes.IndexOfKey(OverflowKey);
+                if (overflowRow >= 0)
+                {
+                    current.Nodes.Insert(overflowRow, next);
+                }
+                else
+                {
+                    current.Nodes.Add(next);
+                }
             }
 
             current = next;
