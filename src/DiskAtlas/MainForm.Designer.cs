@@ -366,7 +366,7 @@ namespace DiskAtlas
             this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(15)))), ((int)(((byte)(22)))), ((int)(((byte)(32)))));
-            this.ClientSize = new System.Drawing.Size(1180, 695);
+            this.ClientSize = new System.Drawing.Size(1340, 695);
             this.Controls.Add(this.mainSplitContainer);
             this.Controls.Add(this.statsBar);
             this.Controls.Add(this.legendControl);
