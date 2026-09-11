@@ -6,11 +6,13 @@
     <security>
       <requestedPrivileges xmlns="urn:schemas-microsoft-com:asm.v3">
         <!--
-          Reading the Master File Table needs a raw volume handle, which requires
-          elevation. The application starts unelevated so it can be debugged
-          normally, and asks the user to restart elevated when a scan begins.
+          Reading the Master File Table needs a raw volume handle, which Windows only
+          grants to an elevated process. The application is useless without it, so the
+          prompt comes at startup rather than in the middle of a scan.
+
+          Visual Studio has to run as administrator to debug this project.
         -->
-        <requestedExecutionLevel level="asInvoker" uiAccess="false" />
+        <requestedExecutionLevel level="requireAdministrator" uiAccess="false" />
       </requestedPrivileges>
     </security>
   </trustInfo>

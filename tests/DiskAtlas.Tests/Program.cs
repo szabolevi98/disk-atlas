@@ -1,6 +1,8 @@
 using System.Buffers.Binary;
 using System.Text;
+using DiskAtlas.Model;
 using DiskAtlas.Ntfs;
+using DiskAtlas.Rendering;
 
 int failures = 0;
 
@@ -120,6 +122,112 @@ List<DataRun>? mftRuns = FileRecordParser.ReadDataRuns(mftRecord, 512);
 Check("record: reads own run list",
     mftRuns is { Count: 1 } && mftRuns[0].StartLcn == 22068 && mftRuns[0].ClusterCount == 24,
     mftRuns is null ? "no runs" : $"got {mftRuns.Count} runs");
+
+// ------------------------------------------------------------------- treemap
+
+// A synthetic tree with known proportions: every rectangle must land inside the canvas,
+// the whole canvas must be covered, and the areas must follow the sizes.
+DiskNode sample = BuildSampleTree();
+using (TreemapRender render = TreemapRenderer.Render(sample, 640, 400))
+{
+    Check("treemap: produced rectangles", render.Items.Count > 0, $"got {render.Items.Count}");
+
+    bool inside = render.Items.All(item =>
+        item.Bounds.Left >= 0 && item.Bounds.Top >= 0 &&
+        item.Bounds.Right <= 640 && item.Bounds.Bottom <= 400);
+    Check("treemap: rectangles stay on the canvas", inside);
+
+    int covered = 0;
+    for (int y = 0; y < 400; y++)
+    {
+        for (int x = 0; x < 640; x++)
+        {
+            if (render.HitTest(x, y) is not null) covered++;
+        }
+    }
+    double coverage = covered / (640.0 * 400.0);
+    Check("treemap: covers the canvas", coverage > 0.97, $"covered {coverage:P1}");
+
+    // The biggest child holds half the volume, so it must occupy about half the pixels.
+    DiskNode biggest = sample.Children[0];
+    int biggestPixels = 0;
+    for (int y = 0; y < 400; y++)
+    {
+        for (int x = 0; x < 640; x++)
+        {
+            DiskNode? hit = render.HitTest(x, y)?.Node;
+            for (DiskNode? walk = hit; walk is not null; walk = walk.Parent)
+            {
+                if (ReferenceEquals(walk, biggest)) { biggestPixels++; break; }
+            }
+        }
+    }
+    double share = biggestPixels / (640.0 * 400.0);
+    Check("treemap: areas follow sizes", Math.Abs(share - 0.5) < 0.03, $"got {share:P1}, expected about 50%");
+
+    // Cushion shading means a flat fill would be a bug: the same file type must show a
+    // range of brightness rather than one colour.
+    var distinct = new HashSet<int>();
+    for (int x = 0; x < 640; x += 3) distinct.Add(render.Image.GetPixel(x, 200).ToArgb());
+    Check("treemap: cushion shading varies", distinct.Count > 20, $"only {distinct.Count} distinct colours");
+
+    string preview = Path.Combine(AppContext.BaseDirectory, "treemap-preview.png");
+    render.Image.Save(preview, System.Drawing.Imaging.ImageFormat.Png);
+    Console.WriteLine($"      preview written to {preview}");
+}
+
+static DiskNode BuildSampleTree()
+{
+    DiskNode root = new("C:", true);
+
+    // A realistic folder has a few big files and a long tail of small ones, which is what
+    // makes the map look like a mosaic rather than a handful of slabs.
+    static (string Name, long Size)[] Spread(string extension, int count, long total)
+    {
+        double[] weights = new double[count];
+        double sum = 0;
+        for (int i = 0; i < count; i++)
+        {
+            weights[i] = 1.0 / Math.Pow(i + 1, 1.35);
+            sum += weights[i];
+        }
+
+        var files = new (string, long)[count];
+        for (int i = 0; i < count; i++)
+        {
+            files[i] = ($"file{i:D3}.{extension}", Math.Max(1, (long)(total * weights[i] / sum * 1000)));
+        }
+
+        return files;
+    }
+
+    void Add(DiskNode parent, string name, long size, params (string Name, long Size)[] children)
+    {
+        long folderSize = 0;
+        foreach ((string _, long childSize) in children) folderSize += childSize;
+        DiskNode folder = new(name, true) { SizeOnDisk = folderSize, LogicalSize = folderSize, FileCount = children.Length };
+        foreach ((string childName, long childSize) in children)
+        {
+            folder.AddChild(new DiskNode(childName, false)
+            {
+                SizeOnDisk = childSize,
+                LogicalSize = childSize,
+                FileCount = 1,
+            });
+        }
+        parent.AddChild(folder);
+    }
+
+    Add(root, "Videos", 500, Spread("mkv", 18, 500));
+    Add(root, "Games", 250, Spread("pak", 40, 250));
+    Add(root, "Windows", 150, Spread("dll", 90, 150));
+    Add(root, "Photos", 60, Spread("jpg", 70, 60));
+    Add(root, "Source", 40, Spread("cs", 55, 40));
+
+    foreach (DiskNode child in root.Children) { root.SizeOnDisk += child.SizeOnDisk; root.FileCount += child.FileCount; }
+    root.LogicalSize = root.SizeOnDisk;
+    return root;
+}
 
 Console.WriteLine();
 Console.WriteLine(failures == 0 ? "all checks passed" : $"{failures} check(s) failed");

@@ -14,14 +14,24 @@ Getting that right means handling a few things the file system normally hides:
 - **Run lists.** Non resident attributes describe their extents as chained runs where each offset is signed and relative to the previous one. This is also how the `$MFT` describes its own location.
 - **Sizes that are not the obvious ones.** Compressed and sparse files occupy less on disk than their logical size, resident files live inside their own record and occupy no clusters at all, and a file with several hard links appears once in the table, so its data is counted once.
 
+## The map
+
+![Cushion treemap](docs/treemap-sample.png)
+
+*The renderer running on generated sample data.*
+
+Every file is a rectangle sized by what it occupies and coloured by what it is. The layout is squarified, so rectangles stay close to square and their areas remain comparable by eye. The relief is a cushion surface: each nesting level adds a parabolic ridge, and the result is lit by a fixed light, which is what turns a flat mosaic into something you can read depth from.
+
+Pointing at a rectangle names the file, clicking one selects its folder everywhere else in the window.
+
 ## Status
 
-Phase 1 of three. What works today:
+Phase 2 of three. What works today:
 
 - [x] NTFS boot sector, `$MFT` run list and FILE record parsing
 - [x] Directory tree rebuilt from parent references, with sizes rolled up
 - [x] Folder tree and contents browser, sorted largest first
-- [ ] Treemap visualization
+- [x] Cushion treemap, coloured by file type, with hover and selection
 - [ ] Duplicate finder using staged hashing
 - [ ] Snapshot comparison, to show what has grown since last time
 
@@ -37,7 +47,8 @@ dotnet run --project src/DiskAtlas
 ## Tests
 
 The parsers are checked against synthetic NTFS structures, including a record whose
-fixups are deliberately broken:
+fixups are deliberately broken, and the treemap is checked for coverage and for areas
+that match the sizes they stand for:
 
 ```
 dotnet run --project tests/DiskAtlas.Tests
@@ -45,7 +56,9 @@ dotnet run --project tests/DiskAtlas.Tests
 
 ## Administrator rights
 
-Reading the Master File Table needs a raw volume handle, which Windows only grants to an elevated process. The application starts unelevated so it stays easy to debug, and offers to restart itself when a scan begins.
+Reading the Master File Table needs a raw volume handle, which Windows only grants to an elevated process, so the manifest asks for elevation at startup.
+
+This means **Visual Studio has to run as administrator to debug the project**. Running the assembly directly with `dotnet DiskAtlas.dll` bypasses the manifest and starts unelevated, which is useful for working on the interface without a UAC prompt.
 
 ## Layout
 
@@ -53,6 +66,8 @@ Reading the Master File Table needs a raw volume handle, which Windows only gran
 src/DiskAtlas/Ntfs/        boot sector, run lists, FILE records, table walker
 src/DiskAtlas/Scanning/    tree building and the scan entry point
 src/DiskAtlas/Model/       volumes, raw records, the finished tree
+src/DiskAtlas/Rendering/   treemap layout, cushion shading, file type colours
+src/DiskAtlas/Controls/    the treemap, legend and stat controls
 src/DiskAtlas/Native/      the Win32 calls needed for raw volume access
 tests/DiskAtlas.Tests/     parser checks against synthetic structures
 ```
