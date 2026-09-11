@@ -57,6 +57,11 @@ public partial class MainForm : Form
     {
         base.OnHandleCreated(e);
         Native.NativeMethods.UseDarkTitleBar(Handle);
+
+        // The scroll bars belong to the native control, not to the managed wrapper, so
+        // they only turn dark when the control itself is switched to the dark visual style.
+        Native.NativeMethods.UseDarkStyle(folderTreeView.Handle);
+        Native.NativeMethods.UseDarkStyle(contentListView.Handle);
     }
 
     protected override void OnShown(EventArgs e)
@@ -543,14 +548,21 @@ public partial class MainForm : Form
 
     private void ContentListView_DrawColumnHeader(object? sender, DrawListViewColumnHeaderEventArgs e)
     {
+        // Windows paints the strip past the last column itself, and paints it white. The
+        // last header is stretched over it so the row ends in the right colour.
+        bool last = e.ColumnIndex == contentListView.Columns.Count - 1;
+        var fill = last
+            ? Rectangle.FromLTRB(e.Bounds.Left, e.Bounds.Top, Math.Max(e.Bounds.Right, contentListView.ClientSize.Width), e.Bounds.Bottom)
+            : e.Bounds;
+
         using (var background = new SolidBrush(Theme.Background))
         {
-            e.Graphics.FillRectangle(background, e.Bounds);
+            e.Graphics.FillRectangle(background, fill);
         }
 
         using (var separator = new Pen(Theme.Border))
         {
-            e.Graphics.DrawLine(separator, e.Bounds.Left, e.Bounds.Bottom - 1, e.Bounds.Right, e.Bounds.Bottom - 1);
+            e.Graphics.DrawLine(separator, fill.Left, fill.Bottom - 1, fill.Right, fill.Bottom - 1);
         }
 
         using var text = new SolidBrush(Theme.TextMuted);

@@ -15,6 +15,54 @@ internal static partial class NativeMethods
     internal const uint FILE_FLAG_NO_BUFFERING = 0x20000000;
     internal const uint FILE_FLAG_SEQUENTIAL_SCAN = 0x08000000;
 
+    /// <summary>
+    /// Opts the process into dark common controls. Scroll bars, headers and other pieces
+    /// the system draws itself stay light otherwise, whatever colours the managed control
+    /// is given. The entry points are exported by ordinal only, so they are bound that way.
+    /// </summary>
+    internal static void UseDarkCommonControls()
+    {
+        try
+        {
+            SetPreferredAppMode(AllowDarkMode);
+            FlushMenuThemes();
+        }
+        catch (EntryPointNotFoundException)
+        {
+            // Windows 10 builds before 1903 do not export this.
+        }
+        catch (DllNotFoundException)
+        {
+        }
+    }
+
+    /// <summary>
+    /// Switches one control to the dark visual style, which is what turns its scroll bars
+    /// and header from white to dark.
+    /// </summary>
+    internal static void UseDarkStyle(nint control)
+    {
+        try
+        {
+            SetWindowTheme(control, "DarkMode_Explorer", nint.Zero);
+        }
+        catch (DllNotFoundException)
+        {
+        }
+    }
+
+    /// <summary>Allow dark mode where the application asks for it.</summary>
+    private const int AllowDarkMode = 1;
+
+    [LibraryImport("uxtheme.dll", EntryPoint = "#135", SetLastError = false)]
+    private static partial int SetPreferredAppMode(int mode);
+
+    [LibraryImport("uxtheme.dll", EntryPoint = "#136", SetLastError = false)]
+    private static partial void FlushMenuThemes();
+
+    [LibraryImport("uxtheme.dll", EntryPoint = "SetWindowTheme", StringMarshalling = StringMarshalling.Utf16)]
+    private static partial int SetWindowTheme(nint window, string subAppName, nint subIdList);
+
     /// <summary>Windows 11 attribute that paints the title bar to match a dark window.</summary>
     private const int UseImmersiveDarkMode = 20;
 
