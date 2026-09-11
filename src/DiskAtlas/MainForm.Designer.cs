@@ -265,6 +265,8 @@ namespace DiskAtlas
             this.contentListView.DrawItem += new System.Windows.Forms.DrawListViewItemEventHandler(this.ContentListView_DrawItem);
             this.contentListView.DrawSubItem += new System.Windows.Forms.DrawListViewSubItemEventHandler(this.ContentListView_DrawSubItem);
             this.contentListView.DoubleClick += new System.EventHandler(this.ContentListView_DoubleClick);
+            this.contentListView.SizeChanged += new System.EventHandler(this.ContentListView_SizeChanged);
+            this.contentListView.ColumnWidthChanged += new System.Windows.Forms.ColumnWidthChangedEventHandler(this.ContentListView_ColumnWidthChanged);
             //
             // nameColumn
             //

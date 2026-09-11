@@ -77,6 +77,7 @@ public partial class MainForm : Form
     {
         LoadVolumes();
         ShowIdleStats();
+        StretchLastColumn();
 
         UpdateStatus(Elevation.IsElevated
             ? "Pick a volume and read its Master File Table."
@@ -544,25 +545,24 @@ public partial class MainForm : Form
         {
             contentListView.EndUpdate();
         }
+
+        // A scroll bar may have appeared or gone, changing how much room there is.
+        StretchLastColumn();
     }
 
     private void ContentListView_DrawColumnHeader(object? sender, DrawListViewColumnHeaderEventArgs e)
     {
-        // Windows paints the strip past the last column itself, and paints it white. The
-        // last header is stretched over it so the row ends in the right colour.
-        bool last = e.ColumnIndex == contentListView.Columns.Count - 1;
-        var fill = last
-            ? Rectangle.FromLTRB(e.Bounds.Left, e.Bounds.Top, Math.Max(e.Bounds.Right, contentListView.ClientSize.Width), e.Bounds.Bottom)
-            : e.Bounds;
-
+        // Anything past the last column is painted white by Windows, and the drawing here
+        // is clipped to the column, so it cannot be covered from this handler. The last
+        // column is stretched to fill the control instead, leaving no strip to paint.
         using (var background = new SolidBrush(Theme.Background))
         {
-            e.Graphics.FillRectangle(background, fill);
+            e.Graphics.FillRectangle(background, e.Bounds);
         }
 
         using (var separator = new Pen(Theme.Border))
         {
-            e.Graphics.DrawLine(separator, fill.Left, fill.Bottom - 1, fill.Right, fill.Bottom - 1);
+            e.Graphics.DrawLine(separator, e.Bounds.Left, e.Bounds.Bottom - 1, e.Bounds.Right, e.Bounds.Bottom - 1);
         }
 
         using var text = new SolidBrush(Theme.TextMuted);
@@ -684,6 +684,45 @@ public partial class MainForm : Form
             node.EnsureVisible();
         }
     }
+
+    /// <summary>Smallest the stretched column is allowed to get before scrolling starts.</summary>
+    private const int LastColumnMinimumWidth = 110;
+
+    private bool _adjustingColumns;
+
+    /// <summary>
+    /// Grows the last column so the columns together cover the whole control. Windows
+    /// paints the area past the last column white and owner drawing cannot reach it, so
+    /// the fix is to leave no such area.
+    /// </summary>
+    private void StretchLastColumn()
+    {
+        if (_adjustingColumns || contentListView.Columns.Count == 0)
+        {
+            return;
+        }
+
+        _adjustingColumns = true;
+        try
+        {
+            int used = 0;
+            for (int i = 0; i < contentListView.Columns.Count - 1; i++)
+            {
+                used += contentListView.Columns[i].Width;
+            }
+
+            contentListView.Columns[^1].Width =
+                Math.Max(LastColumnMinimumWidth, contentListView.ClientSize.Width - used);
+        }
+        finally
+        {
+            _adjustingColumns = false;
+        }
+    }
+
+    private void ContentListView_SizeChanged(object? sender, EventArgs e) => StretchLastColumn();
+
+    private void ContentListView_ColumnWidthChanged(object? sender, ColumnWidthChangedEventArgs e) => StretchLastColumn();
 
     private void UpdateStatus(string text) => statusLabel.Text = text;
 }
