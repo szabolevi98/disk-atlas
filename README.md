@@ -1,4 +1,4 @@
-<img src="docs/icon.png" width="96" align="right" alt="">
+<img src="docs/icon.png" width="48" align="right" alt="">
 
 # Disk Atlas
 
