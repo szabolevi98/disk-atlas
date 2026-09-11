@@ -46,6 +46,16 @@ dotnet build DiskAtlas.sln
 dotnet run --project src/DiskAtlas
 ```
 
+## Release build
+
+The release artifact is a single self contained executable that runs without a .NET installation. The settings live in a publish profile, so Visual Studio and the command line produce the same file:
+
+```
+dotnet publish src/DiskAtlas/DiskAtlas.csproj -p:PublishProfile=win-x64-single-file
+```
+
+The result is `publish/DiskAtlas.exe`, around 48 MB. Debug symbols are left out, so the folder holds that one file and nothing else.
+
 ## Tests
 
 The parsers are checked against synthetic NTFS structures, including a record whose
