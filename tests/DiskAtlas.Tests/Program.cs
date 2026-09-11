@@ -1,5 +1,6 @@
 using System.Buffers.Binary;
 using System.Text;
+using System.Drawing;
 using DiskAtlas.Model;
 using DiskAtlas.Ntfs;
 using DiskAtlas.Rendering;
@@ -226,6 +227,70 @@ static DiskNode BuildSampleTree()
 
     foreach (DiskNode child in root.Children) { root.SizeOnDisk += child.SizeOnDisk; root.FileCount += child.FileCount; }
     root.LogicalSize = root.SizeOnDisk;
+    return root;
+}
+
+// A folder holding tens of thousands of files is the case that used to freeze the
+// window. The map must still build quickly, and the selection region must be cheap
+// enough that it can be recomputed whenever the selection changes.
+DiskNode crowded = BuildCrowdedTree(60_000);
+var renderWatch = System.Diagnostics.Stopwatch.StartNew();
+using (TreemapRender big = TreemapRenderer.Render(crowded, 1200, 700))
+{
+    renderWatch.Stop();
+    Check("treemap: a crowded folder renders quickly",
+        renderWatch.ElapsedMilliseconds < 2000,
+        $"took {renderWatch.ElapsedMilliseconds} ms");
+
+    // This is the pass that used to run on every single repaint, including each mouse
+    // move, once anything was selected.
+    DiskNode target = crowded.Children[0];
+    var outlineWatch = System.Diagnostics.Stopwatch.StartNew();
+    Rectangle? union = null;
+    foreach (TreemapItem item in big.Items)
+    {
+        for (DiskNode? walk = item.Node; walk is not null; walk = walk.Parent)
+        {
+            if (!ReferenceEquals(walk, target)) continue;
+            union = union is null ? item.Bounds : Rectangle.Union(union.Value, item.Bounds);
+            break;
+        }
+    }
+    outlineWatch.Stop();
+
+    Check("treemap: the selection region can be found", union is not null);
+    Console.WriteLine($"      {big.Items.Count:N0} rectangles, map built in {renderWatch.ElapsedMilliseconds} ms, "
+        + $"selection region scanned in {outlineWatch.Elapsed.TotalMilliseconds:N1} ms");
+    Console.WriteLine($"      that scan ran on every repaint before it was cached");
+}
+
+static DiskNode BuildCrowdedTree(int fileCount)
+{
+    DiskNode root = new("C:", true);
+    DiskNode folder = new("WinSxS", true);
+
+    long total = 0;
+    for (int i = 0; i < fileCount; i++)
+    {
+        long size = 4096 + ((i * 7919) % 262_144);
+        folder.AddChild(new DiskNode($"component{i:D6}.manifest", false)
+        {
+            SizeOnDisk = size,
+            LogicalSize = size,
+            FileCount = 1,
+        });
+        total += size;
+    }
+
+    folder.SizeOnDisk = total;
+    folder.LogicalSize = total;
+    folder.FileCount = fileCount;
+    folder.SortChildrenBySize();
+
+    root.AddChild(folder);
+    root.SizeOnDisk = total;
+    root.LogicalSize = total;
+    root.FileCount = fileCount;
     return root;
 }
 

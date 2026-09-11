@@ -261,6 +261,8 @@ namespace DiskAtlas
             this.contentListView.TabIndex = 0;
             this.contentListView.UseCompatibleStateImageBehavior = false;
             this.contentListView.View = System.Windows.Forms.View.Details;
+            this.contentListView.VirtualMode = true;
+            this.contentListView.RetrieveVirtualItem += new System.Windows.Forms.RetrieveVirtualItemEventHandler(this.ContentListView_RetrieveVirtualItem);
             this.contentListView.DrawColumnHeader += new System.Windows.Forms.DrawListViewColumnHeaderEventHandler(this.ContentListView_DrawColumnHeader);
             this.contentListView.DrawItem += new System.Windows.Forms.DrawListViewItemEventHandler(this.ContentListView_DrawItem);
             this.contentListView.DrawSubItem += new System.Windows.Forms.DrawListViewSubItemEventHandler(this.ContentListView_DrawSubItem);

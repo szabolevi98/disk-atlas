@@ -17,6 +17,16 @@ public partial class MainForm : Form
     private CancellationTokenSource? _scanCancellation;
     private ScanResult? _result;
 
+    /// <summary>
+    /// Rows behind the virtual list. A folder can hold tens of thousands of files, and
+    /// building a ListViewItem for each of them froze the window, so the control asks for
+    /// rows as it draws them instead.
+    /// </summary>
+    private IReadOnlyList<DiskNode> _rows = [];
+
+    /// <summary>Size of the folder the rows belong to, used for the share column.</summary>
+    private long _rowsTotal = 1;
+
     public MainForm()
     {
         InitializeComponent();
@@ -213,7 +223,8 @@ public partial class MainForm : Form
         if (scanning)
         {
             folderTreeView.Nodes.Clear();
-            contentListView.Items.Clear();
+            _rows = [];
+            contentListView.VirtualListSize = 0;
             treemapControl.Root = null;
             ShowIdleStats();
         }
@@ -496,14 +507,17 @@ public partial class MainForm : Form
 
     private void SelectInList(DiskNode node)
     {
-        foreach (ListViewItem item in contentListView.Items)
+        for (int index = 0; index < _rows.Count; index++)
         {
-            if (ReferenceEquals(item.Tag, node))
+            if (!ReferenceEquals(_rows[index], node))
             {
-                item.Selected = true;
-                item.EnsureVisible();
-                return;
+                continue;
             }
+
+            contentListView.SelectedIndices.Clear();
+            contentListView.SelectedIndices.Add(index);
+            contentListView.EnsureVisible(index);
+            return;
         }
     }
 
@@ -519,35 +533,46 @@ public partial class MainForm : Form
     /// <summary>Lists the direct children of a folder, largest first.</summary>
     private void ShowChildren(DiskNode node)
     {
-        contentListView.BeginUpdate();
-        try
-        {
-            contentListView.Items.Clear();
-            long total = Math.Max(1, node.SizeOnDisk);
+        _rows = node.Children;
+        _rowsTotal = Math.Max(1, node.SizeOnDisk);
 
-            foreach (DiskNode child in node.Children)
-            {
-                var item = new ListViewItem(child.Name) { Tag = child };
-                item.SubItems.Add(DiskNode.FormatSize(child.SizeOnDisk));
-                item.SubItems.Add(((double)child.SizeOnDisk / total).ToString("P1"));
-                item.SubItems.Add(DiskNode.FormatSize(child.LogicalSize));
-                item.SubItems.Add(child.IsDirectory ? $"{child.FileCount:N0}" : string.Empty);
-                item.SubItems.Add(child.IsDirectory
-                    ? "Folder"
-                    : child.IsCompressed
-                        ? $"{FileTypeColors.Categorize(child.Name).Name}, compressed"
-                        : FileTypeColors.Categorize(child.Name).Name);
+        // Dropping to zero first clears any selection that would point past the new end.
+        contentListView.VirtualListSize = 0;
+        contentListView.VirtualListSize = _rows.Count;
+        contentListView.Invalidate();
 
-                contentListView.Items.Add(item);
-            }
-        }
-        finally
+        if (_rows.Count > 0)
         {
-            contentListView.EndUpdate();
+            contentListView.EnsureVisible(0);
         }
 
         // A scroll bar may have appeared or gone, changing how much room there is.
         StretchLastColumn();
+    }
+
+    /// <summary>Builds a row on demand, which is why a huge folder opens instantly.</summary>
+    private void ContentListView_RetrieveVirtualItem(object? sender, RetrieveVirtualItemEventArgs e)
+    {
+        if (e.ItemIndex < 0 || e.ItemIndex >= _rows.Count)
+        {
+            e.Item = new ListViewItem();
+            return;
+        }
+
+        DiskNode child = _rows[e.ItemIndex];
+
+        var item = new ListViewItem(child.Name) { Tag = child };
+        item.SubItems.Add(DiskNode.FormatSize(child.SizeOnDisk));
+        item.SubItems.Add(((double)child.SizeOnDisk / _rowsTotal).ToString("P1"));
+        item.SubItems.Add(DiskNode.FormatSize(child.LogicalSize));
+        item.SubItems.Add(child.IsDirectory ? $"{child.FileCount:N0}" : string.Empty);
+        item.SubItems.Add(child.IsDirectory
+            ? "Folder"
+            : child.IsCompressed
+                ? $"{FileTypeColors.Categorize(child.Name).Name}, compressed"
+                : FileTypeColors.Categorize(child.Name).Name);
+
+        e.Item = item;
     }
 
     private void ContentListView_DrawColumnHeader(object? sender, DrawListViewColumnHeaderEventArgs e)
@@ -671,8 +696,13 @@ public partial class MainForm : Form
     /// <summary>Double clicking a folder in the list moves the tree selection into it.</summary>
     private void ContentListView_DoubleClick(object? sender, EventArgs e)
     {
-        if (contentListView.SelectedItems.Count == 0
-            || contentListView.SelectedItems[0].Tag is not DiskNode { IsDirectory: true } target)
+        if (contentListView.SelectedIndices.Count == 0)
+        {
+            return;
+        }
+
+        int index = contentListView.SelectedIndices[0];
+        if (index < 0 || index >= _rows.Count || _rows[index] is not { IsDirectory: true } target)
         {
             return;
         }

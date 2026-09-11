@@ -17,6 +17,7 @@ internal sealed class TreemapControl : Control
     private DiskNode? _root;
     private TreemapItem? _hovered;
     private DiskNode? _selected;
+    private Rectangle? _selectionBounds;
     private Size _renderedFor;
 
     public TreemapControl()
@@ -48,6 +49,7 @@ internal sealed class TreemapControl : Control
             _root = value;
             _hovered = null;
             _selected = null;
+            _selectionBounds = null;
             Rebuild();
         }
     }
@@ -60,6 +62,11 @@ internal sealed class TreemapControl : Control
         set
         {
             _selected = value;
+
+            // Finding the region costs a pass over every rectangle, so it is done once
+            // here rather than on each repaint, which would otherwise make hovering
+            // crawl as soon as anything was selected.
+            _selectionBounds = MeasureOutline(value);
             Invalidate();
         }
     }
@@ -85,6 +92,8 @@ internal sealed class TreemapControl : Control
             _render = TreemapRenderer.Render(_root, ClientSize.Width, ClientSize.Height);
         }
 
+        // The rectangles moved, so the cached region no longer describes anything.
+        _selectionBounds = MeasureOutline(_selected);
         Invalidate();
     }
 
@@ -102,9 +111,11 @@ internal sealed class TreemapControl : Control
         graphics.PixelOffsetMode = PixelOffsetMode.Half;
         graphics.DrawImageUnscaled(_render.Image, 0, 0);
 
-        if (_selected is not null)
+        if (_selectionBounds is { } selection)
         {
-            PaintOutline(graphics, _selected, Theme.Accent, 2);
+            using var pen = new Pen(Theme.Accent, 2);
+            graphics.SmoothingMode = SmoothingMode.None;
+            graphics.DrawRectangle(pen, selection.X, selection.Y, selection.Width - 2, selection.Height - 2);
         }
 
         if (_hovered is not null)
@@ -117,14 +128,14 @@ internal sealed class TreemapControl : Control
     }
 
     /// <summary>
-    /// Outlines every rectangle belonging to the selected folder. A folder is drawn as
-    /// many rectangles, so the whole region has to be traced rather than a single box.
+    /// Finds the region a folder covers. A folder is drawn as many rectangles, so the
+    /// whole subtree has to be traced rather than a single box.
     /// </summary>
-    private void PaintOutline(Graphics graphics, DiskNode node, Color color, int thickness)
+    private Rectangle? MeasureOutline(DiskNode? node)
     {
-        if (_render is null)
+        if (node is null || _render is null || ReferenceEquals(node, _root))
         {
-            return;
+            return null;
         }
 
         Rectangle? union = null;
@@ -138,15 +149,7 @@ internal sealed class TreemapControl : Control
             union = union is null ? item.Bounds : Rectangle.Union(union.Value, item.Bounds);
         }
 
-        if (union is null)
-        {
-            return;
-        }
-
-        using var pen = new Pen(color, thickness);
-        Rectangle bounds = union.Value;
-        graphics.SmoothingMode = SmoothingMode.None;
-        graphics.DrawRectangle(pen, bounds.X, bounds.Y, bounds.Width - thickness, bounds.Height - thickness);
+        return union;
     }
 
     private static bool IsWithin(DiskNode candidate, DiskNode ancestor)
