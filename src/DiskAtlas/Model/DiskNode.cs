@@ -42,6 +42,30 @@ public sealed class DiskNode
         child.Parent = this;
     }
 
+    /// <summary>
+    /// Takes this node out of the tree and subtracts its figures from every folder above
+    /// it, so the totals and the map stay honest after something is deleted from disk.
+    /// </summary>
+    /// <returns>False when the node has no parent, which is the case for the volume root.</returns>
+    internal bool Detach()
+    {
+        DiskNode? parent = Parent;
+        if (parent?._children?.Remove(this) != true)
+        {
+            return false;
+        }
+
+        for (DiskNode? ancestor = parent; ancestor is not null; ancestor = ancestor.Parent)
+        {
+            ancestor.SizeOnDisk -= SizeOnDisk;
+            ancestor.LogicalSize -= LogicalSize;
+            ancestor.FileCount -= FileCount;
+        }
+
+        Parent = null;
+        return true;
+    }
+
     internal void SortChildrenBySize()
     {
         _children?.Sort(static (left, right) => right.SizeOnDisk.CompareTo(left.SizeOnDisk));

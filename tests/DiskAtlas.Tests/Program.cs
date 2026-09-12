@@ -359,6 +359,48 @@ Check("sizing: centred inside the working area, not the screen",
     where.X == 60 + 430 && where.Y == 120,
     $"got {where}");
 
+// ------------------------------------------------------------------- deleting
+
+// Removing something from disk has to take its figures out of every folder above it,
+// otherwise the totals and the map keep describing a disk that no longer exists.
+DiskNode volume = new("C:", true);
+DiskNode games = new("Games", true);
+DiskNode assets = new("Assets", true);
+
+DiskNode pak = new("pak0.pak", false) { SizeOnDisk = 600, LogicalSize = 590, FileCount = 1 };
+DiskNode texture = new("textures.bin", false) { SizeOnDisk = 300, LogicalSize = 300, FileCount = 1 };
+DiskNode readme = new("readme.txt", false) { SizeOnDisk = 100, LogicalSize = 40, FileCount = 1 };
+
+assets.AddChild(pak);
+assets.AddChild(texture);
+assets.SizeOnDisk = 900; assets.LogicalSize = 890; assets.FileCount = 2;
+
+games.AddChild(assets);
+games.AddChild(readme);
+games.SizeOnDisk = 1000; games.LogicalSize = 930; games.FileCount = 3;
+
+volume.AddChild(games);
+volume.SizeOnDisk = 1000; volume.LogicalSize = 930; volume.FileCount = 3;
+
+Check("delete: a file leaves its parent", readme.Detach());
+Check("delete: the parent loses the size", games.SizeOnDisk == 900, $"got {games.SizeOnDisk}");
+Check("delete: the volume loses it too", volume.SizeOnDisk == 900, $"got {volume.SizeOnDisk}");
+Check("delete: the file count follows", volume.FileCount == 2, $"got {volume.FileCount}");
+Check("delete: the logical size follows", volume.LogicalSize == 890, $"got {volume.LogicalSize}");
+Check("delete: the row is gone from the parent",
+    !games.Children.Any(child => ReferenceEquals(child, readme)));
+
+// A folder takes everything under it, counted once at the folder rather than per file.
+Check("delete: a folder leaves its parent", assets.Detach());
+Check("delete: the subtree is subtracted", volume.SizeOnDisk == 0, $"got {volume.SizeOnDisk}");
+Check("delete: the files inside are subtracted", volume.FileCount == 0, $"got {volume.FileCount}");
+Check("delete: the detached folder keeps its own figures", assets.SizeOnDisk == 900,
+    $"got {assets.SizeOnDisk}");
+Check("delete: the detached folder has no parent", assets.Parent is null);
+
+// The volume root has nothing above it, so it cannot be removed this way.
+Check("delete: the volume root refuses", !volume.Detach());
+
 Console.WriteLine();
 Console.WriteLine(failures == 0 ? "all checks passed" : $"{failures} check(s) failed");
 return failures == 0 ? 0 : 1;

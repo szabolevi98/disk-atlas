@@ -52,6 +52,13 @@ namespace DiskAtlas
             this.statusPanel = new System.Windows.Forms.Panel();
             this.hoverLabel = new System.Windows.Forms.Label();
             this.statusLabel = new System.Windows.Forms.Label();
+            this.components = new System.ComponentModel.Container();
+            this.folderContextMenu = new System.Windows.Forms.ContextMenuStrip(this.components);
+            this.folderShowInExplorerItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.listContextMenu = new System.Windows.Forms.ContextMenuStrip(this.components);
+            this.listShowInExplorerItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.listMenuSeparator = new System.Windows.Forms.ToolStripSeparator();
+            this.listDeleteItem = new System.Windows.Forms.ToolStripMenuItem();
             this.headerPanel.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.mainSplitContainer)).BeginInit();
             this.mainSplitContainer.Panel1.SuspendLayout();
@@ -62,6 +69,8 @@ namespace DiskAtlas
             this.rightSplitContainer.Panel2.SuspendLayout();
             this.rightSplitContainer.SuspendLayout();
             this.statusPanel.SuspendLayout();
+            this.folderContextMenu.SuspendLayout();
+            this.listContextMenu.SuspendLayout();
             this.SuspendLayout();
             //
             // headerPanel
@@ -220,6 +229,7 @@ namespace DiskAtlas
             this.folderTreeView.DrawNode += new System.Windows.Forms.DrawTreeNodeEventHandler(this.FolderTreeView_DrawNode);
             this.folderTreeView.BeforeExpand += new System.Windows.Forms.TreeViewCancelEventHandler(this.FolderTreeView_BeforeExpand);
             this.folderTreeView.AfterSelect += new System.Windows.Forms.TreeViewEventHandler(this.FolderTreeView_AfterSelect);
+            this.folderTreeView.ContextMenuStrip = this.folderContextMenu;
             this.folderTreeView.MouseDown += new System.Windows.Forms.MouseEventHandler(this.FolderTreeView_MouseDown);
             //
             // rightSplitContainer
@@ -282,7 +292,10 @@ namespace DiskAtlas
             this.contentListView.DrawColumnHeader += new System.Windows.Forms.DrawListViewColumnHeaderEventHandler(this.ContentListView_DrawColumnHeader);
             this.contentListView.DrawItem += new System.Windows.Forms.DrawListViewItemEventHandler(this.ContentListView_DrawItem);
             this.contentListView.DrawSubItem += new System.Windows.Forms.DrawListViewSubItemEventHandler(this.ContentListView_DrawSubItem);
+            this.contentListView.ContextMenuStrip = this.listContextMenu;
             this.contentListView.DoubleClick += new System.EventHandler(this.ContentListView_DoubleClick);
+            this.contentListView.MouseDown += new System.Windows.Forms.MouseEventHandler(this.ContentListView_MouseDown);
+            this.contentListView.KeyDown += new System.Windows.Forms.KeyEventHandler(this.ContentListView_KeyDown);
             this.contentListView.SizeChanged += new System.EventHandler(this.ContentListView_SizeChanged);
             this.contentListView.ColumnWidthChanged += new System.Windows.Forms.ColumnWidthChangedEventHandler(this.ContentListView_ColumnWidthChanged);
             //
@@ -318,6 +331,54 @@ namespace DiskAtlas
             //
             this.typeColumn.Text = "Type";
             this.typeColumn.Width = 110;
+            //
+            // folderContextMenu
+            //
+            this.folderContextMenu.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
+            this.folderShowInExplorerItem});
+            this.folderContextMenu.Name = "folderContextMenu";
+            this.folderContextMenu.ShowImageMargin = false;
+            this.folderContextMenu.Size = new System.Drawing.Size(172, 26);
+            this.folderContextMenu.Opening += new System.ComponentModel.CancelEventHandler(this.FolderContextMenu_Opening);
+            //
+            // folderShowInExplorerItem
+            //
+            this.folderShowInExplorerItem.Name = "folderShowInExplorerItem";
+            this.folderShowInExplorerItem.Size = new System.Drawing.Size(171, 22);
+            this.folderShowInExplorerItem.Text = "Show in Explorer";
+            this.folderShowInExplorerItem.Click += new System.EventHandler(this.FolderShowInExplorerItem_Click);
+            //
+            // listContextMenu
+            //
+            this.listContextMenu.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
+            this.listShowInExplorerItem,
+            this.listMenuSeparator,
+            this.listDeleteItem});
+            this.listContextMenu.Name = "listContextMenu";
+            this.listContextMenu.ShowImageMargin = false;
+            this.listContextMenu.Size = new System.Drawing.Size(172, 54);
+            this.listContextMenu.Opening += new System.ComponentModel.CancelEventHandler(this.ListContextMenu_Opening);
+            //
+            // listShowInExplorerItem
+            //
+            this.listShowInExplorerItem.Name = "listShowInExplorerItem";
+            this.listShowInExplorerItem.Size = new System.Drawing.Size(171, 22);
+            this.listShowInExplorerItem.Text = "Show in Explorer";
+            this.listShowInExplorerItem.Click += new System.EventHandler(this.ListShowInExplorerItem_Click);
+            //
+            // listMenuSeparator
+            //
+            this.listMenuSeparator.Name = "listMenuSeparator";
+            this.listMenuSeparator.Size = new System.Drawing.Size(168, 6);
+            //
+            // listDeleteItem
+            //
+            this.listDeleteItem.Name = "listDeleteItem";
+            this.listDeleteItem.ShortcutKeyDisplayString = "Del";
+            this.listDeleteItem.ShowShortcutKeys = true;
+            this.listDeleteItem.Size = new System.Drawing.Size(171, 22);
+            this.listDeleteItem.Text = "Delete to Recycle Bin";
+            this.listDeleteItem.Click += new System.EventHandler(this.ListDeleteItem_Click);
             //
             // legendControl
             //
@@ -390,6 +451,8 @@ namespace DiskAtlas
             ((System.ComponentModel.ISupportInitialize)(this.rightSplitContainer)).EndInit();
             this.rightSplitContainer.ResumeLayout(false);
             this.statusPanel.ResumeLayout(false);
+            this.folderContextMenu.ResumeLayout(false);
+            this.listContextMenu.ResumeLayout(false);
             this.ResumeLayout(false);
         }
 
@@ -419,5 +482,11 @@ namespace DiskAtlas
         private System.Windows.Forms.Panel statusPanel;
         private System.Windows.Forms.Label statusLabel;
         private System.Windows.Forms.Label hoverLabel;
+        private System.Windows.Forms.ContextMenuStrip folderContextMenu;
+        private System.Windows.Forms.ToolStripMenuItem folderShowInExplorerItem;
+        private System.Windows.Forms.ContextMenuStrip listContextMenu;
+        private System.Windows.Forms.ToolStripMenuItem listShowInExplorerItem;
+        private System.Windows.Forms.ToolStripSeparator listMenuSeparator;
+        private System.Windows.Forms.ToolStripMenuItem listDeleteItem;
     }
 }

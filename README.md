@@ -26,6 +26,14 @@ Pointing at a rectangle names the file, clicking one selects its folder everywhe
 
 The folder tree shows the largest subfolders of each level and summarises the rest, because an owner drawn tree costs about seven tenths of a millisecond per row and a folder like `WinSxS` holds twenty thousand of them. The list underneath is virtual, so it holds every child and opens instantly whatever the count.
 
+## Acting on what you find
+
+Right clicking a folder in the tree, or a row in the list, offers to show it in Explorer. The list also offers to delete.
+
+Deleting goes through the shell with the undo flag set, so the item lands in the Recycle Bin and can be restored from there. The application asks first, naming the path, the size and, for a folder, how many files go with it. Windows still warns separately when something is too large to recycle and would be destroyed instead.
+
+Afterwards the model is corrected rather than left stale: the item is taken out of the tree, its size and file count are subtracted from every folder above it, and the map, the totals and the list are redrawn.
+
 ## Status
 
 Phase 2 of three. What works today:
@@ -34,6 +42,7 @@ Phase 2 of three. What works today:
 - [x] Directory tree rebuilt from parent references, with sizes rolled up
 - [x] Folder tree and contents browser, sorted largest first
 - [x] Cushion treemap, coloured by file type, with hover and selection
+- [x] Show in Explorer, and delete to the Recycle Bin
 - [ ] Duplicate finder using staged hashing
 - [ ] Snapshot comparison, to show what has grown since last time
 

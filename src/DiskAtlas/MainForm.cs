@@ -39,6 +39,9 @@ public partial class MainForm : Form
     /// <summary>Size of the folder the rows belong to, used for the share column.</summary>
     private long _rowsTotal = 1;
 
+    /// <summary>Folders on the volume. Kept here because deleting one changes it.</summary>
+    private long _directoryCount;
+
     public MainForm()
     {
         InitializeComponent();
@@ -76,6 +79,17 @@ public partial class MainForm : Form
         cancelScanButton.FlatAppearance.MouseOverBackColor = Theme.SurfaceHover;
         aboutButton.FlatAppearance.BorderColor = Theme.Border;
         aboutButton.FlatAppearance.MouseOverBackColor = Theme.SurfaceHover;
+
+        // A context menu ignores BackColor for most of what it draws, so the palette
+        // has to arrive through a renderer.
+        var menuRenderer = new Controls.DarkMenuRenderer();
+        foreach (ContextMenuStrip menu in new[] { folderContextMenu, listContextMenu })
+        {
+            menu.Renderer = menuRenderer;
+            menu.BackColor = Theme.SurfaceRaised;
+            menu.ForeColor = Theme.TextPrimary;
+            menu.Font = Theme.UiFont;
+        }
     }
 
     protected override void OnHandleCreated(EventArgs e)
@@ -275,11 +289,8 @@ public partial class MainForm : Form
 
     private void ShowResult(ScanResult result)
     {
-        statsBar.Set(
-            ("Files", $"{result.FileCount:N0}", Theme.Accent),
-            ("Folders", $"{result.DirectoryCount:N0}", FileTypeColors.Programs.Color),
-            ("Size on disk", DiskNode.FormatSize(result.Root.SizeOnDisk), FileTypeColors.Video.Color),
-            ("Scan time", $"{result.Duration.TotalSeconds:N2} s", FileTypeColors.Images.Color));
+        _directoryCount = result.DirectoryCount;
+        ShowScanFigures(result.Root, result.Duration);
 
         folderTreeView.BeginUpdate();
         try
@@ -303,6 +314,16 @@ public partial class MainForm : Form
 
         UpdateStatus($"{result.Volume.DriveLetter}: mapped at {perSecond:N0} records per second");
     }
+
+    /// <summary>
+    /// Fills the headline figures. The file count and the size come from the tree rather
+    /// than from the scan result, because deleting something changes them.
+    /// </summary>
+    private void ShowScanFigures(DiskNode root, TimeSpan duration) => statsBar.Set(
+        ("Files", $"{root.FileCount:N0}", Theme.Accent),
+        ("Folders", $"{_directoryCount:N0}", FileTypeColors.Programs.Color),
+        ("Size on disk", DiskNode.FormatSize(root.SizeOnDisk), FileTypeColors.Video.Color),
+        ("Scan time", $"{duration.TotalSeconds:N2} s", FileTypeColors.Images.Color));
 
     private static TreeNode CreateNode(DiskNode node)
     {
@@ -434,6 +455,19 @@ public partial class MainForm : Form
     private void FolderTreeView_MouseDown(object? sender, MouseEventArgs e)
     {
         TreeNode? node = folderTreeView.GetNodeAt(e.X, e.Y);
+
+        if (e.Button == MouseButtons.Right)
+        {
+            // Right clicking selects what was pointed at, so the menu acts on the row the
+            // user aimed at rather than whatever happened to be selected before.
+            if (node is not null)
+            {
+                folderTreeView.SelectedNode = node;
+            }
+
+            return;
+        }
+
         if (node is null || node.Nodes.Count == 0)
         {
             return;
@@ -852,6 +886,267 @@ public partial class MainForm : Form
     private void ContentListView_SizeChanged(object? sender, EventArgs e) => StretchLastColumn();
 
     private void ContentListView_ColumnWidthChanged(object? sender, ColumnWidthChangedEventArgs e) => StretchLastColumn();
+
+    // ------------------------------------------------------------- context menus
+
+    /// <summary>
+    /// The path on disk, or null when there is nothing real behind the row. The summary
+    /// row and the folder holding records with no reachable parent both land here.
+    /// </summary>
+    private static string? ExistingPath(DiskNode? node)
+    {
+        if (node is null)
+        {
+            return null;
+        }
+
+        string path = node.FullPath;
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return null;
+        }
+
+        // A bare drive letter means "the current directory on that drive" to Windows, so
+        // the root needs its separator to mean the root.
+        if (path.Length == 2 && path[1] == ':')
+        {
+            path += '\\';
+        }
+
+        if (node.IsDirectory)
+        {
+            return Directory.Exists(path) ? path : null;
+        }
+
+        return File.Exists(path) ? path : null;
+    }
+
+    private DiskNode? SelectedFolder => folderTreeView.SelectedNode?.Tag as DiskNode;
+
+    private DiskNode? SelectedRow
+    {
+        get
+        {
+            if (contentListView.SelectedIndices.Count == 0)
+            {
+                return null;
+            }
+
+            int index = contentListView.SelectedIndices[0];
+            return index >= 0 && index < _rows.Count ? _rows[index] : null;
+        }
+    }
+
+    private void FolderContextMenu_Opening(object? sender, System.ComponentModel.CancelEventArgs e)
+    {
+        DiskNode? folder = SelectedFolder;
+        if (folder is null)
+        {
+            e.Cancel = true;
+            return;
+        }
+
+        folderShowInExplorerItem.Enabled = ExistingPath(folder) is not null;
+    }
+
+    private void FolderShowInExplorerItem_Click(object? sender, EventArgs e) => Reveal(SelectedFolder);
+
+    private void ContentListView_MouseDown(object? sender, MouseEventArgs e)
+    {
+        if (e.Button != MouseButtons.Right)
+        {
+            return;
+        }
+
+        ListViewItem? hit = contentListView.GetItemAt(e.X, e.Y);
+        contentListView.SelectedIndices.Clear();
+
+        if (hit is not null)
+        {
+            contentListView.SelectedIndices.Add(hit.Index);
+        }
+    }
+
+    /// <summary>
+    /// Delete is wired here rather than as a menu shortcut, so the key only acts while the
+    /// list has focus. A shortcut on the menu would reach the whole window.
+    /// </summary>
+    private void ContentListView_KeyDown(object? sender, KeyEventArgs e)
+    {
+        if (e.KeyCode == Keys.Delete)
+        {
+            e.Handled = true;
+            DeleteSelectedRow();
+        }
+    }
+
+    private void ListContextMenu_Opening(object? sender, System.ComponentModel.CancelEventArgs e)
+    {
+        DiskNode? row = SelectedRow;
+        if (row is null)
+        {
+            e.Cancel = true;
+            return;
+        }
+
+        bool exists = ExistingPath(row) is not null;
+        listShowInExplorerItem.Enabled = exists;
+
+        // The volume root has no parent to be removed from, and nothing above it to
+        // correct afterwards.
+        listDeleteItem.Enabled = exists && row.Parent is not null;
+        listDeleteItem.Text = row.IsDirectory ? "Delete folder to Recycle Bin" : "Delete to Recycle Bin";
+    }
+
+    private void ListShowInExplorerItem_Click(object? sender, EventArgs e) => Reveal(SelectedRow);
+
+    private void ListDeleteItem_Click(object? sender, EventArgs e) => DeleteSelectedRow();
+
+    private void Reveal(DiskNode? node)
+    {
+        string? path = ExistingPath(node);
+        if (path is null || node is null)
+        {
+            UpdateStatus("That item is no longer on disk.");
+            return;
+        }
+
+        if (!Native.ShellOperations.Reveal(path, node.IsDirectory, out string? error))
+        {
+            MessageBox.Show(this, error, "Could not open Explorer", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+        }
+    }
+
+    // ------------------------------------------------------------------ deleting
+
+    private void DeleteSelectedRow()
+    {
+        DiskNode? row = SelectedRow;
+        string? path = ExistingPath(row);
+
+        if (row is null || path is null || row.Parent is null)
+        {
+            return;
+        }
+
+        if (!ConfirmDelete(row, path))
+        {
+            return;
+        }
+
+        Native.ShellOperations.DeleteOutcome outcome =
+            Native.ShellOperations.Recycle(Handle, path, out string? error);
+
+        switch (outcome)
+        {
+            case Native.ShellOperations.DeleteOutcome.Cancelled:
+                UpdateStatus("Nothing was deleted.");
+                return;
+
+            case Native.ShellOperations.DeleteOutcome.Failed:
+                MessageBox.Show(this, error, "Could not delete", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return;
+        }
+
+        RemoveFromTree(row);
+        UpdateStatus($"{row.Name} went to the Recycle Bin, freeing {DiskNode.FormatSize(row.SizeOnDisk)}.");
+    }
+
+    private bool ConfirmDelete(DiskNode row, string path)
+    {
+        string what = row.IsDirectory
+            ? $"the folder and everything in it, {row.FileCount:N0} files"
+            : "this file";
+
+        string message =
+            $"{path}\r\n\r\n" +
+            $"Delete {what}?\r\n\r\n" +
+            $"Size on disk: {DiskNode.FormatSize(row.SizeOnDisk)}\r\n" +
+            "It goes to the Recycle Bin, so it can be restored from there.";
+
+        return MessageBox.Show(
+            this,
+            message,
+            "Delete",
+            MessageBoxButtons.YesNo,
+            MessageBoxIcon.Warning,
+            MessageBoxDefaultButton.Button2) == DialogResult.Yes;
+    }
+
+    /// <summary>
+    /// Takes the deleted item out of the model and brings the window back in step: the
+    /// totals, the map, the folder tree and the list all described a disk that has since
+    /// changed.
+    /// </summary>
+    private void RemoveFromTree(DiskNode row)
+    {
+        DiskNode? parent = row.Parent;
+        int removedDirectories = row.IsDirectory ? CountDirectories(row) : 0;
+
+        if (!row.Detach() || _result is null || parent is null)
+        {
+            return;
+        }
+
+        _directoryCount = Math.Max(0, _directoryCount - removedDirectories);
+        ShowScanFigures(_result.Root, _result.Duration);
+
+        if (row.IsDirectory)
+        {
+            RemoveTreeNode(row);
+        }
+
+        // Re-rendering the map is the only way to reclaim the space the item occupied.
+        treemapControl.Root = _result.Root;
+        treemapControl.SelectedNode = SelectedFolder;
+
+        if (SelectedFolder is { } folder)
+        {
+            ShowChildren(folder);
+        }
+    }
+
+    private void RemoveTreeNode(DiskNode folder)
+    {
+        if (folderTreeView.SelectedNode is not { } selected)
+        {
+            return;
+        }
+
+        foreach (TreeNode candidate in selected.Nodes)
+        {
+            if (ReferenceEquals(candidate.Tag, folder))
+            {
+                selected.Nodes.Remove(candidate);
+                return;
+            }
+        }
+    }
+
+    /// <summary>Counts the folders in a subtree, iteratively so a deep one cannot overflow.</summary>
+    private static int CountDirectories(DiskNode root)
+    {
+        int count = 0;
+        Stack<DiskNode> pending = new();
+        pending.Push(root);
+
+        while (pending.Count > 0)
+        {
+            DiskNode node = pending.Pop();
+            if (!node.IsDirectory)
+            {
+                continue;
+            }
+
+            count++;
+            foreach (DiskNode child in node.Children)
+            {
+                pending.Push(child);
+            }
+        }
+
+        return count;
+    }
 
     private void UpdateStatus(string text) => statusLabel.Text = text;
 }
