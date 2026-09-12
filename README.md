@@ -36,15 +36,11 @@ Afterwards the model is corrected rather than left stale: the item is taken out 
 
 ## Status
 
-Phase 2 of three. What works today:
-
 - [x] NTFS boot sector, `$MFT` run list and FILE record parsing
 - [x] Directory tree rebuilt from parent references, with sizes rolled up
 - [x] Folder tree and contents browser, sorted largest first
 - [x] Cushion treemap, coloured by file type, with hover and selection
 - [x] Show in Explorer, and delete to the Recycle Bin
-- [ ] Duplicate finder using staged hashing
-- [ ] Snapshot comparison, to show what has grown since last time
 
 ## Building
 
